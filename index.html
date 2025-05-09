@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ChatVerse Live</title>
+  <style>
+    body { margin: 0; font-family: sans-serif; display: flex; height: 100vh; background: #2c2f33; color: #fff; }
+    .sidebar { width: 250px; background: #23272a; padding: 1em; display: flex; flex-direction: column; }
+    .sidebar h2 { color: #7289da; margin-bottom: 1em; }
+    .friend { padding: 0.5em; cursor: pointer; border-radius: 5px; }
+    .friend:hover { background: #36393f; }
+    .chat { flex: 1; display: flex; flex-direction: column; }
+    .chat-header { padding: 1em; background: #36393f; border-bottom: 1px solid #202225; }
+    .messages { flex: 1; overflow-y: auto; padding: 1em; display: flex; flex-direction: column; gap: 0.5em; }
+    .message { background: #40444b; padding: 0.75em; border-radius: 5px; }
+    .meta { font-size: 0.75em; color: #aaa; margin-bottom: 0.3em; }
+    .chat-input { display: flex; padding: 1em; background: #40444b; }
+    .chat-input input { flex: 1; padding: 0.7em; background: #2f3136; border: none; color: white; border-radius: 5px; }
+    .chat-input button { margin-left: 0.5em; padding: 0.7em 1em; background: #7289da; border: none; color: white; border-radius: 5px; cursor: pointer; }
+    .chat-input button:hover { background: #5b6eae; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <h2>Friends</h2>
+    <div class="friend">Logan</div>
+    <div class="friend">Andy</div>
+    <div class="friend">Guest</div>
+  </div>
+
+  <div class="chat">
+    <div class="chat-header">Chat with Friends</div>
+    <div class="messages" id="messages"></div>
+    <div class="chat-input">
+      <input type="text" id="input" placeholder="Type a message..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <audio id="notifSound" src="https://www.myinstants.com/media/sounds/discord-notification.mp3" preload="auto"></audio>
+
+  <script>
+    const input = document.getElementById('input');
+    const messages = document.getElementById('messages');
+    const sound = document.getElementById('notifSound');
+
+    const socket = new WebSocket(`ws://${location.host}`);
+    const username = prompt("Enter your name:") || "Anonymous";
+
+    const stored = JSON.parse(localStorage.getItem("chatlog") || "[]");
+    stored.forEach(msg => renderMessage(msg, false));
+
+    function renderMessage({ user, time, text }, play = true) {
+      const div = document.createElement('div');
+      div.className = 'message';
+      div.innerHTML = `<div class="meta">${user} • ${time}</div><div>${text}</div>`;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+      if (play && user !== username) sound.play();
+    }
+
+    function sendMessage() {
+      const text = input.value.trim();
+      if (!text) return;
+      const msg = {
+        user: username,
+        text,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      socket.send(JSON.stringify(msg));
+      renderMessage(msg);
+      input.value = '';
+      const log = JSON.parse(localStorage.getItem("chatlog") || "[]");
+      log.push(msg);
+      localStorage.setItem("chatlog", JSON.stringify(log));
+    }
+
+    socket.onmessage = e => {
+      const msg = JSON.parse(e.data);
+      renderMessage(msg);
+    };
+
+    input.addEventListener('keypress', e => {
+      if (e.key === 'Enter') sendMessage();
+    });
+  </script>
+</body>
+</html>
